@@ -1,0 +1,180 @@
+# Spring Boot Dubbo 微服务配置示例
+# 本文件展示了所有新增配置项的完整使用方法
+
+server:
+  port: 8080
+
+spring:
+  application:
+    name: example-service
+  
+  # 数据库配置
+  datasource:
+    url: jdbc:mysql://localhost:3306/dubbo_demo?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    username: root
+    password: 123456
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  
+  # Redis配置
+  redis:
+    host: localhost
+    port: 6379
+    database: 0
+    timeout: 5000
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+        max-wait: -1
+  
+  # Kafka配置（当使用Kafka作为事件提供者时）
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      acks: all
+      retries: 3
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 1
+    consumer:
+      group-id: example-service
+      auto-offset-reset: earliest
+      enable-auto-commit: true
+
+# ==================== 事件系统配置 ====================
+app:
+  event:
+    # 事件提供者类型：redis（默认）或 kafka
+    provider: redis
+    
+    # 统一的事件channel/topic名称
+    # Redis使用此名称作为pub/sub channel
+    # Kafka使用此名称作为topic
+    channel: domain-events
+    
+    # 消费者配置
+    consumer:
+      # 是否启用事件消费（默认：false）
+      # 只有需要监听事件的服务才设置为true
+      enabled: false
+    
+    # 线程池配置（用于事件监听器）
+    thread-pool:
+      # 核心线程数（默认：8）
+      core-size: 8
+      # 最大线程数（默认：16）
+      max-size: 16
+      # 队列容量（默认：2000）
+      queue-capacity: 2000
+      # 线程名前缀（默认：event-listener-）
+      name-prefix: "event-listener-"
+    
+    # Kafka特定配置
+    kafka:
+      # 并发消费者数量（默认：5）
+      concurrency: 5
+      # 信任的包列表（用于反序列化安全）
+      trusted-packages:
+        - com.example.shared.event
+        - com.example.diet.event
+        - com.example.nutrition.event
+        - com.example.user.event
+        - com.example.food.event
+        - com.example.file.event
+
+# ==================== 缓存系统配置 ====================
+  cache:
+    # 本地缓存配置（Caffeine）
+    local:
+      # 写入后过期时间（默认：15分钟）
+      expire-after-write: 15m
+      # 最大缓存条目数（默认：20000）
+      maximum-size: 20000
+    
+    # Redis缓存配置
+    redis:
+      # 缓存TTL（默认：45分钟）
+      ttl: 45m
+    
+    # 异步缓存操作线程池配置
+    async:
+      # 核心线程池大小（默认：8）
+      core-pool-size: 8
+      # 最大线程池大小（默认：16）
+      max-pool-size: 16
+      # 队列容量（默认：1000）
+      queue-capacity: 1000
+
+# ==================== JWT配置 ====================
+jwt:
+  # JWT密钥（生产环境请使用更安全的密钥）
+  secret: your-secret-key-should-be-at-least-256-bits-long
+  # JWT过期时间（毫秒，默认24小时）
+  expiration: 86400000
+
+# ==================== Dubbo配置 ====================
+dubbo:
+  application:
+    name: ${spring.application.name}
+  protocol:
+    name: dubbo
+    port: -1  # 自动分配端口
+  registry:
+    address: zookeeper://localhost:2181
+  provider:
+    version: 3.1.0
+  consumer:
+    version: 3.1.0
+
+# ==================== MyBatis Plus配置 ====================
+mybatis-plus:
+  mapper-locations: classpath:/mapper/*.xml
+  type-aliases-package: com.example.*.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    # 开发环境可以启用SQL日志
+    # log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: auto
+
+# ==================== 日志配置 ====================
+logging:
+  level:
+    # 应用日志级别
+    com.example.*: INFO
+    # 缓存相关日志（建议设为WARN减少输出）
+    com.example.shared.cache: WARN
+    com.example.shared.event.cache: WARN
+    # 事件系统日志
+    com.example.shared.event: INFO
+    # 根日志级别
+    root: INFO
+
+# ==================== 配置说明 ====================
+# 
+# 1. 事件系统配置优化：
+#    - 统一使用 app.event.channel 配置Redis channel和Kafka topic
+#    - 支持通过 app.event.provider 切换事件提供者
+#    - 线程池和Kafka并发参数可配置
+#
+# 2. 缓存系统配置优化：
+#    - 本地缓存和Redis缓存TTL可分别配置
+#    - 异步操作线程池参数可调整
+#
+# 3. 向后兼容性：
+#    - 所有配置项都有合理的默认值
+#    - 现有配置无需修改即可正常工作
+#
+# 4. 环境适配：
+#    - 开发环境建议使用Redis作为事件提供者
+#    - 生产环境建议使用Kafka作为事件提供者
+#    - 可通过Spring Profile进行环境区分
+#
+# 5. 性能调优：
+#    - 根据实际负载调整线程池大小
+#    - 根据内存情况调整缓存大小和TTL
+#    - 根据消息量调整Kafka并发数
